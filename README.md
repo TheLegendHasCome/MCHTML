@@ -62,5 +62,5 @@ MCHTML.step(1/30)                  // step physics manually (headless tests)
 
 ## Credits
 
-Built by ENI for **LO** — sweets to the sweet.
+Built by [REDACTED]
 Renders with [three.js](https://threejs.org).
