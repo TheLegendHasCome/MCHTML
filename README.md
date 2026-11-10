@@ -13,6 +13,8 @@ A tiny Minecraft-like voxel sandbox that runs entirely in your browser — **one
 - **Block breaking & placing** — voxel raycast (Amanatides–Woo DDA), 10-block hotbar, middle-click eyedropper
 - **Baked ambient occlusion** — per-vertex AO in the classic *0fps* style, with quad-diagonal flipping to kill the anisotropy artifacts; vertex colors act as pure brightness over the texture map, so shading and pixels stack
 - **Break particles** — pooled mini-cubes carrying the broken block's own atlas tile; gravity, ground bounce, tumble and a fade-out shrink, zero geometry churn
+- **Main menu** — Continue World (only when a save exists), New World with a two-step overwrite confirm so a save can never be erased by accident, seed loader, a live save-card line and a collapsible how-to
+- **Multiplayer (beta)** — serverless WebRTC peer links: the host prints an `MCHTML-…` connection code, the joiner answers with theirs, one paste each way via any chat. Star topology through the host, world state (seed + edit log) synced on join, remote edits, live positions and break debris all relay; no accounts, no data ever uploaded (strict corporate NATs may refuse — home networks are fine)
 - **Water, trees & clouds** — depth-ordered translucent water, deterministic oak trees whose canopies cross chunk seams without holes, drifting instanced clouds
 - **Physics** — swept AABB player with sub-stepping (no tunneling); the movement basis is derived directly from the camera rotation, so "forward" is always exactly where you're looking
 - **Mouse settings** — live sensitivity slider and invert-Y toggle in the pause menu, persisted with your save
@@ -33,6 +35,8 @@ A tiny Minecraft-like voxel sandbox that runs entirely in your browser — **one
 | Middle click | pick block |
 | `1–9` `0` / wheel | select hotbar slot |
 | `Esc` | pause menu (auto-saves) |
+
+Holding `Space` in flight just rises — the double-tap firewall ignores OS key-repeat, so fly never stutters on/off while held.
 
 ## How it works
 
@@ -59,6 +63,8 @@ MCHTML.world.height(x, z)          // terrain height function
 MCHTML.freshWorld(seed)            // regenerate
 MCHTML.player.flying = true        // creative flight
 MCHTML.step(1/30)                  // step physics manually (headless tests)
+MCHTML.particles()                 // live break-particle count
+MCHTML.mp                          // multiplayer state: chans, peers, pid, host
 ```
 
 ## Credits

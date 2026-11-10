@@ -98,6 +98,20 @@
     width:130px; padding:7px 9px; color:#e8f2e6; font-family:var(--font-body); font-size:12px;
     background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); border-radius:8px; outline:none;
   }
+  .rowsave{
+    margin:14px auto 0; padding:9px 14px; font-size:12px; color:#c8f2b8; width:fit-content;
+    background:rgba(125,219,98,.08); border:1px solid rgba(125,219,98,.35); border-radius:10px;
+  }
+  .helpdetails{ margin-top:18px; font-size:12px; color:#9fb99b; }
+  .helpdetails summary{ cursor:pointer; letter-spacing:.12em; text-transform:uppercase; font-size:11px; }
+  .helpdetails summary:hover{ color:#cde5c8; }
+  .mpstep{ font-size:11.5px; color:#93a893; margin:10px 0 6px; letter-spacing:.03em; }
+  .mpstatus{ margin-top:14px; font-size:12px; color:#93a893; min-height:18px; }
+  .panel textarea{
+    width:100%; margin-top:6px; padding:9px 10px; font-family:var(--font-body); font-size:10.5px;
+    color:#cde8d6; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.14);
+    border-radius:8px; resize:none; outline:none; line-height:1.4; word-break:break-all;
+  }
   .stats{ font-size:10.5px; color:#7d8f7d; margin-top:18px; }
   #loadBar{ width:260px; height:8px; margin:18px auto 0; border-radius:99px; overflow:hidden; background:rgba(255,255,255,.08); }
   #loadBar i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#5cb53f,#8fe36f); transition:width .2s; }
@@ -145,27 +159,74 @@
   </div>
 </div>
 
-<!-- welcome -->
+<!-- main menu -->
 <div id="welcome" class="overlay veil">
   <div class="panel">
-    <h1>MCHTML</h1>
-    <div class="sub">a tiny voxel sandbox — one file, your browser, your world</div>
-    <h3>Controls</h3>
-    <div class="keys">
-      <span><kbd>W A S D</kbd></span><span>move</span>
-      <span><kbd>Space</kbd></span><span>jump — double-tap to fly</span>
-      <span><kbd>Shift / Ctrl</kbd></span><span>fly down / sprint</span>
-      <span><kbd>Mouse</kbd></span><span>look around</span>
-      <span><kbd>Left click</kbd></span><span>break block</span>
-      <span><kbd>Right click</kbd></span><span>place block</span>
-      <span><kbd>1–9 0 / wheel</kbd></span><span>choose block</span>
-      <span><kbd>Esc</kbd></span><span>menu (world auto-saves)</span>
+    <h1 style="margin-bottom:2px">MCHTML</h1>
+    <div class="sub" id="menuTag">a voxel sandbox — one file, your browser, your world</div>
+    <div id="saveCard" class="rowsave hidden">
+      <span id="saveInfo">–</span>
     </div>
-    <div class="btnrow"><button id="btnPlay" class="g">ENTER WORLD</button></div>
-    <div class="seedline" style="margin-top:16px">
+    <div class="btnrow" style="flex-direction:column;align-items:stretch;margin-top:16px">
+      <button id="btnContinue" class="g hidden">CONTINUE WORLD</button>
+      <button id="btnPlayMain" class="g">NEW WORLD</button>
+      <div class="seedline" style="margin:2px 0 0">
+        <span>or seed:</span><input id="seedInput" type="text" placeholder="paste from a friend" /><button id="btnSeedMain" class="g secondary" style="padding:13px 14px;font-size:10px">LOAD</button>
+      </div>
+      <button id="btnMp" class="g secondary">PLAY WITH A FRIEND · beta</button>
+    </div>
+    <div class="seedline" style="margin-top:12px">
       <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="touchChk" type="checkbox" style="width:15px;height:15px;accent-color:#5cb53f" />touch controls (thumbstick · tap to mine / long-press to build)</label>
     </div>
-    <div class="stats">you can flip this anytime from the pause menu</div>
+    <details class="helpdetails">
+      <summary>HOW TO PLAY</summary>
+      <div class="keys" style="margin-top:10px">
+        <span><kbd>W A S D</kbd></span><span>move</span>
+        <span><kbd>Space</kbd></span><span>jump — double-TAP to fly (hold = rise)</span>
+        <span><kbd>Shift / Ctrl</kbd></span><span>fly down / sprint</span>
+        <span><kbd>Mouse</kbd></span><span>look around</span>
+        <span><kbd>Left click</kbd></span><span>break block</span>
+        <span><kbd>Right click</kbd></span><span>place block</span>
+        <span><kbd>1–9 0 / wheel</kbd></span><span>choose block</span>
+        <span><kbd>Esc</kbd></span><span>menu (world auto-saves)</span>
+      </div>
+    </details>
+    <div class="stats">MCHTML v1.3 · three.js · generated &amp; rendered locally, nothing uploads</div>
+  </div>
+</div>
+
+<!-- multiplayer lobby -->
+<div id="mpMenu" class="overlay veil hidden">
+  <div class="panel">
+    <h1>MULTIPLAYER</h1>
+    <div class="sub">WebRTC peer link — the two of you trade connection codes by chat or text, no server between you</div>
+    <div class="btnrow" style="flex-direction:column;align-items:stretch">
+      <button id="mpHost" class="g">START A WORLD TO SHARE</button>
+      <button id="mpJoin" class="g secondary">JOIN A FRIEND'S WORLD</button>
+    </div>
+
+    <div id="mpHostBox" class="hidden" style="margin-top:14px;text-align:left">
+      <div class="mpstep">1 · send this code to your friend:</div>
+      <textarea id="mpOfferOut" readonly rows="3" style="width:100%"></textarea>
+      <div class="mpstep">2 · paste their reply and connect:</div>
+      <div class="seedline" style="justify-content:flex-start">
+        <input id="mpAnswerIn" type="text" placeholder="MCHTML-..." style="flex:1" />
+        <button id="mpComplete" class="g" style="padding:13px 14px;font-size:10px">CONNECT</button>
+      </div>
+    </div>
+
+    <div id="mpJoinBox" class="hidden" style="margin-top:14px;text-align:left">
+      <div class="mpstep">1 · paste the code your friend sent:</div>
+      <div class="seedline" style="justify-content:flex-start">
+        <input id="mpOfferIn" type="text" placeholder="MCHTML-..." style="flex:1" />
+        <button id="mpMakeReply" class="g secondary" style="padding:13px 14px;font-size:10px">REPLY</button>
+      </div>
+      <div class="mpstep">2 · send this back to them:</div>
+      <textarea id="mpAnswerOut" readonly rows="3" style="width:100%"></textarea>
+    </div>
+
+    <div id="mpStatus" class="mpstatus"></div>
+    <div class="btnrow"><button id="mpBack" class="g secondary">BACK</button></div>
   </div>
 </div>
 
@@ -174,14 +235,15 @@
   <div class="panel">
     <h1>PAUSED</h1>
     <div class="sub" id="menuStats">–</div>
-    <div class="btnrow">
+    <div class="btnrow" style="flex-direction:column;align-items:stretch">
       <button id="btnResume" class="g">RESUME</button>
-      <button id="btnSave" class="g secondary">SAVE NOW</button>
-      <button id="btnCopy" class="g secondary">COPY SEED</button>
-    </div>
-    <div class="btnrow">
+      <div class="btnrow" style="flex-direction:row;margin-top:0">
+        <button id="btnSave" class="g secondary" style="flex:1">SAVE</button>
+        <button id="btnCopy" class="g secondary" style="flex:1.4">COPY SEED</button>
+        <button id="btnFull" class="g secondary" style="flex:1.2">FULL</button>
+      </div>
+      <button id="btnMainMenu" class="g secondary">MAIN MENU</button>
       <button id="btnNew" class="g warn">NEW WORLD</button>
-      <button id="btnFull" class="g secondary">FULLSCREEN</button>
     </div>
     <div class="seedline">
       <span>sensitivity:</span><input id="sensRange" type="range" min="30" max="250" value="100" style="width:130px;padding:0" /><span id="sensVal" style="color:#c8f2b8;min-width:40px;text-align:right">100%</span>
@@ -192,10 +254,7 @@
     <div class="seedline" style="margin-top:10px">
       <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="touchChk2" type="checkbox" style="width:15px;height:15px;accent-color:#5cb53f" />touch controls</label>
     </div>
-    <div class="seedline">
-      <span>load seed:</span><input id="seedInput" type="text" placeholder="number…" /><button id="btnSeed" class="g secondary" style="padding:13px 14px;font-size:10px">GO</button>
-    </div>
-    <div class="stats">MCHTML v1.2.1 · three.js · generated &amp; rendered locally, nothing uploads</div>
+    <div class="stats">MCHTML v1.3 · three.js · generated &amp; rendered locally, nothing uploads</div>
   </div>
 </div>
 
@@ -529,14 +588,14 @@ function getBlock(x, y, z){
   return c.data[cIdx(x - (cx<<4), y, z - (cz<<4))];
 }
 
-function setBlock(x, y, z, id, record=true){
+function setBlock(x, y, z, id, record=true, net=true){
   if (y <= 0 || y >= HGT) return false;
+  if (record){ edits.set(x+','+y+','+z, id); if (net) netBroadcastEdit(x, y, z, id); }
   const cx = x >> 4, cz = z >> 4;
   const c = chunkAt(cx, cz);
-  if (!c) return false;
+  if (!c) return true;            // edit logged; chunk build will apply it on demand
   const lx = x - (cx<<4), lz = z - (cz<<4);
   c.data[cIdx(lx, y, lz)] = id;
-  if (record) edits.set(x+','+y+','+z, id);
   c.dirty = true;
   // dirty neighbors when editing at a border (their face could appear/disappear)
   if (lx===0) { const n=chunkAt(cx-1,cz); if (n) n.dirty = true; }
@@ -999,6 +1058,7 @@ function chunksReadyForSpawn(){
 let saveDirty = false, lastSave = 0;
 function saveSoon(){ saveDirty = true; }
 function saveNow(){
+  if (MP.active && !MP.host) return false;   // visiting a friend's world: never clobber your own save
   try {
     const o = { seed:SEED, sel:selected, settings, player:{ x:player.pos.x, y:player.pos.y, z:player.pos.z, yaw:player.yaw, pitch:player.pitch, fly:player.flying }, edits:Object.fromEntries(edits) };
     localStorage.setItem(SAVE_KEY, JSON.stringify(o));
@@ -1132,7 +1192,7 @@ let running = false, paused = false;
 function toastOnce(s){ toast(s); }
 function pointerLock(){
   if (isTouch) return;
-  canvas.requestPointerLock?.();
+  try { const pr = canvas.requestPointerLock?.(); if (pr && pr.catch) pr.catch(()=>{}); } catch(e){}
 }
 document.addEventListener('pointerlockchange', ()=>{
   const locked = document.pointerLockElement === canvas;
@@ -1153,32 +1213,68 @@ function syncMenuStats(){
   ui.menuStats.textContent = `seed ${SEED} · ${edits.size} edits · xyz ${player.pos.x.toFixed(0)} / ${player.pos.y.toFixed(0)} / ${player.pos.z.toFixed(0)}`;
 }
 
-$('btnPlay').onclick = startGame;
+/* ---------- menu wiring ---------- */
+function exitToMenu(){
+  running = false; paused = false;
+  document.exitPointerLock?.();
+  ui.menu.classList.add('hidden');
+  ui.welcome.classList.remove('hidden');
+  refreshSaveCard();
+}
+function refreshSaveCard(){
+  const s = loadSave();
+  const has = !!(s && Number.isInteger(s.seed));
+  $('btnContinue').classList.toggle('hidden', !has);
+  $('saveCard').classList.toggle('hidden', !has);
+  if (has) $('saveInfo').textContent = `your world waits · seed ${s.seed} · ${Object.keys(s.edits || {}).length} edits`;
+}
+/* one regen path for seed load / new world — loading overlay gates play until primed */
+function regenerate(seed, msg){
+  freshWorld(seed);
+  ui.seed.textContent = String(SEED);
+  ui.loading.classList.remove('hidden'); primed = false;
+  if (msg) toast(msg);
+  startGame();
+}
+$('btnContinue').onclick = ()=>{ sfx('click'); startGame(); };
+let armNewT = 0;
+$('btnPlayMain').onclick = ()=>{
+  sfx('click');
+  const s = loadSave();
+  const dangerous = s && Number.isInteger(s.seed);
+  if (dangerous && performance.now() - armNewT > 4000){
+    armNewT = performance.now();
+    $('btnPlayMain').textContent = 'OVERWRITES YOUR SAVE · CLICK AGAIN';
+    setTimeout(()=>{ $('btnPlayMain').textContent = 'NEW WORLD'; armNewT = 0; }, 4000);
+    return;
+  }
+  armNewT = 0; $('btnPlayMain').textContent = 'NEW WORLD';
+  regenerate((Math.random()*0x7fffffff)|0, 'new world · seed ' + SEED);
+};
+$('btnSeedMain').onclick = ()=>{
+  const v = parseInt($('seedInput').value, 10);
+  if (!Number.isFinite(v)){ toast('enter a number'); return; }
+  sfx('click');
+  regenerate(v);
+};
+$('btnMp').onclick = ()=>{ sfx('click'); ui.welcome.classList.add('hidden'); $('mpMenu').classList.remove('hidden'); mpResetPanes(); };
 $('btnResume').onclick = ()=>{ syncMenuStats(); ui.menu.classList.add('hidden'); paused = false; pointerLock(); };
+$('btnMainMenu').onclick = ()=>{ sfx('click'); exitToMenu(); };
 $('btnSave').onclick  = ()=>{ toast(saveNow() ? 'saved ✓' : 'storage unavailable'); sfx('click'); };
 $('btnCopy').onclick  = ()=>{ navigator.clipboard?.writeText(String(SEED)); toast('seed copied'); sfx('click'); };
 $('btnFull').onclick  = ()=>{ document.documentElement.requestFullscreen?.().catch(()=>{}); };
-$('btnSeed').onclick  = ()=>{
-  const v = parseInt($('seedInput').value, 10);
-  if (!Number.isFinite(v)){ toast('enter a number'); return; }
-  freshWorld(v); ui.menu.classList.add('hidden'); paused = false; ui.loading.classList.remove('hidden'); primed = false;
-};
-$('btnNew').onclick = ()=>{
-  freshWorld((Math.random()*0x7fffffff)|0);
-  ui.menu.classList.add('hidden'); paused = false;
-  ui.loading.classList.remove('hidden'); primed = false;
-  toast('new world · seed ' + SEED);
-};
+$('btnNew').onclick = ()=> regenerate((Math.random()*0x7fffffff)|0, 'new world · seed ' + SEED);
 
 /* keyboard */
 addEventListener('keydown', e=>{
   if (!running) return;
   keys.add(e.code);
   if (e.code === 'Space'){
+    e.preventDefault();
+    if (e.repeat) return;             // holding ≠ double-tapping
     const now = performance.now();
     if (now - lastSpace < 280){ player.flying = !player.flying; player.vel.y = 0; toast(player.flying?'flight on':'flight off'); ui.mode.textContent = player.flying?'fly':'walk'; }
     lastSpace = now;
-    e.preventDefault();
   }
   const num = e.code.match(/^Digit([0-9])$/);
   if (num){ const i = num[1]==='0' ? 9 : +num[1]-1; if (i<HOTBAR.length) select(i); }
@@ -1267,8 +1363,293 @@ const stickVec = { x:0, y:0, active:false };
   });
 }
 
+/* ---------- multiplayer: WebRTC peer links with hand-traded codes ----------
+   No signaling server anywhere. The host bakes their connection offer into
+   an MCHTML-…code, the joiner answers with theirs, one paste each way.
+   STUN (Google) only discovers public addresses — no game data touches it.
+   Topology: star. Every client links to the host; the host relays edits,
+   positions and presence. The world rides one `sync` message (seed + edit
+   log) on join, so every peer builds identical terrain locally. */
+const MP = {
+  active:false, host:false, hostPid:null,
+  pid: Math.random().toString(36).slice(2,8),
+  name: 'player',
+  chans:[], peers:new Map(), lastPos:0,
+};
+const ICE = { iceServers:[{ urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302'] }] };
+const mpEncode = o => { try { return 'MCHTML-' + btoa(unescape(encodeURIComponent(JSON.stringify(o)))); } catch(e){ return ''; } };
+const mpDecode = s => {
+  const t = String(s || '').replace(/\s+/g, '');
+  if (!t.startsWith('MCHTML-')) throw new Error('bad code');
+  return JSON.parse(decodeURIComponent(escape(atob(t.slice(7)))));
+};
+function mpSay(s){ const el = $('mpStatus'); if (el) el.textContent = s; }
+function mpResetPanes(){
+  $('mpHostBox').classList.add('hidden');
+  $('mpJoinBox').classList.add('hidden');
+  mpSay('');
+}
+/* raw senders — every call is try-wrapped because channels die mid-frame */
+MP.sendTo  = (ch, o) => { try { if (ch.readyState === 'open') ch.send(JSON.stringify(o)); } catch(e){} };
+MP.bcastRaw = o => { for (const ch of [...MP.chans]) MP.sendTo(ch, o); };
+MP.relay   = (skip, o) => { for (const ch of [...MP.chans]) if (ch !== skip) MP.sendTo(ch, o); };
+
+/* fan an edit out to every link (called from setBlock; net=false skips it
+   so remote-applied edits don't echo around the loop) */
+function netBroadcastEdit(x, y, z, id){ if (MP.active) MP.bcastRaw({ t:'e', x, y, z, id }); }
+
+function makeAvatar(pid, name){
+  const hue = ((parseInt(pid, 36) || 7) % 360) / 360;
+  const g = new THREE.Group();
+  const col = new THREE.Color().setHSL(hue, 0.55, 0.5);
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.52, 0.9, 0.34),
+    new THREE.MeshBasicMaterial({ color: col }));
+  body.position.y = 0.45;                       // feet at group origin
+  const head = new THREE.Mesh(
+    new THREE.BoxGeometry(0.46, 0.46, 0.46),
+    new THREE.MeshBasicMaterial({ color: col.clone().offsetHSL(0, 0, 0.14) }));
+  head.position.y = 1.15;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const c2 = cv.getContext('2d');
+  c2.font = 'bold 30px system-ui, sans-serif';
+  c2.textAlign = 'center'; c2.textBaseline = 'middle';
+  c2.lineWidth = 7; c2.strokeStyle = 'rgba(10,20,10,.8)'; c2.strokeText(String(name), 128, 34);
+  c2.fillStyle = '#fff'; c2.fillText(String(name), 128, 34);
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent:true, depthTest:false }));
+  tag.scale.set(1.8, 0.45, 1); tag.position.y = 1.82;
+  g.add(body, head, tag);
+  scene.add(g);
+  return { grp:g, head, tag, name:String(name) };
+}
+function ensurePeer(pid, name){
+  let p = MP.peers.get(pid);
+  if (!p){ p = makeAvatar(pid, name || 'friend'); MP.peers.set(pid, p); }
+  return p;
+}
+function dropPeer(pid){
+  const p = MP.peers.get(pid); if (!p) return;
+  scene.remove(p.grp);
+  MP.peers.delete(pid);
+}
+
+/* world adoption (client side of `sync`): rebuild terrain from their seed,
+   replay their edit log. Your own single-player save is never touched. */
+function adoptWorld(seed, ed){
+  SEED = seed; setSeed(seed);
+  edits.clear();
+  for (const k in ed) edits.set(k, ed[k]);
+  saveDirty = false;
+  for (const [k, c] of chunks){
+    if (c.mesh)  { scene.remove(c.mesh);  c.mesh.geometry.dispose(); }
+    if (c.meshW) { scene.remove(c.meshW); c.meshW.geometry.dispose(); }
+    if (c.meshG) { scene.remove(c.meshG); c.meshG.geometry.dispose(); }
+  }
+  chunks.clear();
+  clouds.init(makeHash(seed));
+  spawnPlayer();
+  ui.seed.textContent = String(seed);
+  ui.loading.classList.remove('hidden'); primed = false;
+}
+
+function handleNet(m, ch){
+  try {
+    switch (m.t){
+      case 'hello': {                          // host: a friend asked in
+        ch.mpPid = m.pid;
+        ensurePeer(m.pid, m.name);
+        const players = [];
+        for (const [pid, p] of MP.peers) if (pid !== m.pid) players.push({ pid, name:p.name });
+        MP.sendTo(ch, { t:'sync', seed:SEED, edits:Object.fromEntries(edits), players, hostPid:MP.pid, hostName:MP.name });
+        MP.relay(ch, { t:'peer', pid:m.pid, name:m.name });
+        mpSay((m.name || 'a friend') + ' is in your world');
+        toast('friend joined');
+        $('mpMenu').classList.add('hidden');
+        startGame();
+        break;
+      }
+      case 'sync': {                           // client: here is my world
+        MP.hostPid = m.hostPid || 'host';
+        ensurePeer(MP.hostPid, m.hostName || 'host');
+        for (const pl of (m.players || [])) ensurePeer(pl.pid, pl.name);
+        adoptWorld(m.seed, m.edits || {});
+        MP.active = true;
+        $('mpMenu').classList.add('hidden');
+        mpSay('their world · seed ' + SEED);
+        startGame();
+        break;
+      }
+      case 'peer': if (m.pid !== MP.pid) ensurePeer(m.pid, m.name); break;
+      case 'e': {                              // a block changed elsewhere
+        const was = getBlock(m.x, m.y, m.z);
+        setBlock(m.x, m.y, m.z, m.id, true, false);
+        if (m.id === B.AIR && was) spawnBreakParticles(m.x, m.y, m.z, was);
+        if (MP.host) MP.relay(ch, m);          // host fans it out to the rest
+        break;
+      }
+      case 'p': {                              // someone moved: 15 Hz
+        const p = ensurePeer(m.pid);
+        p.grp.position.set(m.x, m.y, m.z);
+        p.grp.rotation.y = m.yaw || 0;
+        p.head.rotation.x = (m.pitch || 0) * 0.6;
+        if (MP.host) MP.relay(ch, m);
+        break;
+      }
+      case 'bye': {
+        if (m.pid === MP.pid) break;
+        const p = MP.peers.get(m.pid);
+        dropPeer(m.pid);
+        mpSay((p ? p.name : 'friend') + ' left the world');
+        if (MP.host) MP.relay(ch, m);
+        break;
+      }
+    }
+  } catch(e){ console.warn('mp message error', m && m.t, e); }
+}
+
+function bindChannel(ch){
+  ch.onopen = () => {
+    MP.chans.push(ch);
+    if (MP.host) mpSay('link open — waiting for them…');
+    else { MP.sendTo(ch, { t:'hello', pid:MP.pid, name:MP.name }); mpSay('linked — pulling their world…'); }
+  };
+  ch.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; } handleNet(m, ch); };
+  ch.onclose = () => {
+    const i = MP.chans.indexOf(ch); if (i >= 0) MP.chans.splice(i, 1);
+    if (ch.mpPid){ MP.relay(ch, { t:'bye', pid:ch.mpPid }); dropPeer(ch.mpPid); mpSay('friend left the world'); }
+    else { mpSay('link closed'); if (!MP.host) MP.active = false; }
+  };
+}
+
+/* ICE gathering completes before the code exists — we trade SDP blobs,
+   not trickle candidates, so the code must be whole on arrival */
+function gatherComplete(pc){
+  return new Promise(res => {
+    if (pc.iceGatheringState === 'complete') return res();
+    const t = setTimeout(res, 3200);
+    pc.addEventListener('icegatheringstatechange', () => {
+      if (pc.iceGatheringState === 'complete'){ clearTimeout(t); res(); }
+    });
+  });
+}
+
+let mpPendingHost = null, mpJoinPc = null;
+const mpHostPcs = [];
+
+/* host: reuse whatever world the menu already loaded (save or fresh), open
+   a link. Need a second friend? Press START again for another fresh code. */
+async function mpHost(){
+  sfx('click');
+  MP.active = true; MP.host = true;
+  $('mpHostBox').classList.remove('hidden');
+  $('mpJoinBox').classList.add('hidden');
+  mpSay('brewing a link code…');
+  try {
+    const pc = new RTCPeerConnection(ICE);
+    mpHostPcs.push(pc); mpPendingHost = pc;
+    bindChannel(pc.createDataChannel('mchtml'));
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'connected') mpSay('peer link up — loading them in…');
+      if (pc.connectionState === 'failed') mpSay('connection failed — try a fresh code');
+    };
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await gatherComplete(pc);
+    $('mpOfferOut').value = mpEncode({ t:'o', name:MP.name, pid:MP.pid, sdp:pc.localDescription.sdp });
+    mpSay('1. send the code → 2. paste their reply → 3. CONNECT');
+  } catch(e){ mpSay('could not open a link here — WebRTC unavailable?'); }
+}
+async function mpComplete(){
+  sfx('click');
+  const pc = mpPendingHost;
+  if (!pc){ mpSay('no open link — press START first'); return; }
+  try {
+    const o = mpDecode($('mpAnswerIn').value);
+    if (o.t !== 'a') throw new Error('not a reply');
+    await pc.setRemoteDescription({ type:'answer', sdp:o.sdp });
+    $('mpAnswerIn').value = '';
+    mpSay('handshaking…');
+  } catch(e){ mpSay('that reply did not fit — ask them to resend'); }
+}
+async function mpJoinPane(){
+  sfx('click');
+  MP.host = false;
+  $('mpJoinBox').classList.remove('hidden');
+  $('mpHostBox').classList.add('hidden');
+  mpSay('paste their code → REPLY → send yours back');
+}
+async function mpMakeReply(){
+  sfx('click');
+  try {
+    const o = mpDecode($('mpOfferIn').value);
+    if (o.t !== 'o') throw new Error('not an offer');
+    if (mpJoinPc){ try{ mpJoinPc.close(); }catch(e){} }
+    const pc = new RTCPeerConnection(ICE);
+    mpJoinPc = pc;
+    MP.hostPid = o.pid || null;
+    pc.ondatachannel = ev => bindChannel(ev.channel);
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'connected') mpSay('peer link up — world incoming…');
+      if (pc.connectionState === 'failed') mpSay('connection failed — ask for a fresh code');
+    };
+    await pc.setRemoteDescription({ type:'offer', sdp:o.sdp });
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+    await gatherComplete(pc);
+    $('mpAnswerOut').value = mpEncode({ t:'a', name:MP.name, pid:MP.pid, sdp:pc.localDescription.sdp });
+    mpSay('2. send your reply code back');
+  } catch(e){ mpSay('that code did not fit — ask for a fresh one'); }
+}
+
+/* tiny debug window into the link layer */
+window.__mpDebug = () => ({
+  host: mpHostPcs.map(pc => pc.connectionState + '/' + pc.iceConnectionState + '/' + pc.signalingState),
+  join: mpJoinPc ? (mpJoinPc.connectionState + '/' + mpJoinPc.iceConnectionState + '/' + mpJoinPc.signalingState) : null,
+  chans: MP.chans.map(c => ({ st: c.readyState, label: c.label })),
+  peers: [...MP.peers.keys()],
+});
+/* tinkering surface: bind a foreign channel (tests / mods), poke message
+   handling directly, drive the position tick by hand */
+window.__mpTest = {
+  bind: ch => bindChannel(ch),
+  inject: (ch, m) => handleNet(m, ch),
+  tick: t => netTick(t),
+  leave: r => mpLeave(r),
+  drop: pid => dropPeer(pid),
+  pump: () => pumpChunks(),
+  mp: MP,
+};
+
+function mpLeave(reason){
+  try { MP.bcastRaw({ t:'bye', pid:MP.pid }); } catch(e){}
+  for (const pid of [...MP.peers.keys()]) dropPeer(pid);
+  for (const ch of [...MP.chans]) { try { ch.close(); } catch(e){} }
+  MP.chans.length = 0;
+  if (mpJoinPc){ try { mpJoinPc.close(); } catch(e){} mpJoinPc = null; }
+  for (const pc of mpHostPcs) { try { pc.close(); } catch(e){} }
+  mpHostPcs.length = 0; mpPendingHost = null;
+  MP.active = false; MP.host = false;
+  mpSay(reason || '');
+}
+
+$('mpHost').onclick = mpHost;
+$('mpJoin').onclick = mpJoinPane;
+$('mpComplete').onclick = mpComplete;
+$('mpMakeReply').onclick = mpMakeReply;
+$('mpBack').onclick = ()=>{ sfx('click'); mpLeave(); $('mpMenu').classList.add('hidden'); ui.welcome.classList.remove('hidden'); refreshSaveCard(); };
+
+/* 15 Hz position broadcast — host relays client pings so the whole star
+   sees everyone; squat deltas (toFixed) keep payload tiny */
+function netTick(now){
+  if (!MP.active || !MP.chans.length) return;
+  if (now - MP.lastPos < 66) return;
+  MP.lastPos = now;
+  MP.bcastRaw({ t:'p', pid:MP.pid, x:+player.pos.x.toFixed(2), y:+player.pos.y.toFixed(2), z:+player.pos.z.toFixed(2), yaw:+player.yaw.toFixed(2), pitch:+player.pitch.toFixed(2) });
+}
+addEventListener('beforeunload', ()=>{ try { if (MP.active) MP.bcastRaw({ t:'bye', pid:MP.pid }); } catch(e){} });
+
 /* expose for tinkering */
-window.MCHTML = { world:{ get:getBlock, set:(x,y,z,i)=>setBlock(x,y,z,i), height:heightAt, chunks, edits }, player, camera, THREE, freshWorld, saveNow, step:(dt=0.016)=>{ running = true; movePlayer(dt); updateParticles(dt); }, break:()=>breakBlock(), particles:()=>particles.filter(p=>p.life>0).length };
+window.MCHTML = { world:{ get:getBlock, set:(x,y,z,i)=>setBlock(x,y,z,i), height:heightAt, chunks, edits }, player, camera, THREE, freshWorld, saveNow, step:(dt=0.016)=>{ running = true; movePlayer(dt); updateParticles(dt); }, break:()=>breakBlock(), particles:()=>particles.filter(p=>p.life>0).length, mp:MP };
 
 /* ---------- boot + loop ---------- */
 let primed = false;
@@ -1287,6 +1668,7 @@ function boot(){
     freshWorld((Math.random()*0x7fffffff)|0);
   }
   ui.seed.textContent = String(SEED);
+  refreshSaveCard();
 
   // fast-forward generation while the loading screen is up
   const t0 = performance.now();
@@ -1322,6 +1704,7 @@ function loop(now){
   if (running && !paused){
     movePlayer(dt);
     updateParticles(dt);
+    netTick(now);
     // crosshair target highlight
     const hv = targetVoxel();
     if (hv){ hiBox.visible = true; hiBox.position.set(hv.x+0.5, hv.y+0.5, hv.z+0.5); }
