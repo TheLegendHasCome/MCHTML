@@ -1,6 +1,6 @@
 # MCHTML
 
-![status](https://img.shields.io/badge/build-3.x_green-8fe36f) ![license](https://img.shields.io/badge/license-MIT-blue)
+![status](https://img.shields.io/badge/build-1.4_green-8fe36f) ![license](https://img.shields.io/badge/license-MIT-blue)
 
 **Play it live: [https://thelegendhascome.github.io/MCHTML/](https://thelegendhascome.github.io/MCHTML/)**
 
@@ -17,9 +17,12 @@ A tiny Minecraft-like voxel sandbox that runs entirely in your browser — **one
 - **Multiplayer (beta)** — serverless WebRTC peer links: the host prints an `MCHTML-…` connection code, the joiner answers with theirs, one paste each way via any chat. Star topology through the host, world state (seed + edit log) synced on join, remote edits, live positions and break debris all relay; no accounts, no data ever uploaded (strict corporate NATs may refuse — home networks are fine)
 - **Water, trees & clouds** — depth-ordered translucent water, deterministic oak trees whose canopies cross chunk seams without holes, drifting instanced clouds
 - **Physics** — swept AABB player with sub-stepping (no tunneling); the movement basis is derived directly from the camera rotation, so "forward" is always exactly where you're looking
+- **Falling sand (v1.4)** — placed or exposed sand drops to the nearest firm ground instantly, sinks straight down through air *and* water, stacks walk down notch-by-notch when you break their footing, and every move lands on the other side of a peer link as the same ordered edits
+- **Ocean-proof spawn (v1.4)** — spawn spirals out from the origin and takes the first dry column (a beach is a fine home), so even the most ocean-drenched seed you load starts you on solid ground; friends joining your code share that same spawn
+- **Touch controls, reworked (v1.4)** — every zone tracks its own finger, so thumbstick + look + a second finger coexist; a skidding look-drag is never a mis-tap (tap = mine, long-press = build, done with a MINE/BUILD toggle); hold JUMP to rise, DOWN to sink, double-tap JUMP to fly, MENU to pause
 - **Mouse settings** — live sensitivity slider and invert-Y toggle in the pause menu, persisted with your save
 - **Persistence** — your edits, settings and position auto-save to `localStorage` every few seconds; the **seed** box in the pause menu lets you share worlds as a number
-- **Touch support** — thumbstick + look-zone + fly/build toggles, **toggleable on the welcome screen** (auto-detected by default, flippable anytime from the pause menu)
+- **Touch support** — thumbstick + look/tap/long-press zone + flight buttons (JUMP/FLY/MINE/DOWN/MENU), toggleable on the welcome screen (auto-detected by default, flippable anytime from the pause menu)
 - **Tiny synth** — break/place/jump sounds generated with WebAudio, no assets
 
 ## Controls
@@ -65,6 +68,9 @@ MCHTML.player.flying = true        // creative flight
 MCHTML.step(1/30)                  // step physics manually (headless tests)
 MCHTML.particles()                 // live break-particle count
 MCHTML.mp                          // multiplayer state: chans, peers, pid, host
+window.__mpTest.sand(x,y,z)        // trigger a falling-sand settle at a cell (multiplayer tests)
+window.__mpTest.gen(x,y,z)         // the column generator as a pure function
+window.__mpTest.spawn()            // re-run the spiral spawn search
 ```
 
 ## Credits

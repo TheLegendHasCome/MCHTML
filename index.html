@@ -134,6 +134,9 @@
   #btnJump{ right:18px; bottom:34px; }
   #btnFly{ right:88px; bottom:96px; }
   #btnMode{ right:18px; bottom:120px; }
+  #btnDown{ right:88px; bottom:34px; }
+  #btnMenu{ right:14px; top:14px; width:56px; height:40px; border-radius:10px; font-size:8px; letter-spacing:.08em; }
+  #stickZone, #lookZone, .tbtn{ touch-action:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
@@ -191,7 +194,7 @@
         <span><kbd>Esc</kbd></span><span>menu (world auto-saves)</span>
       </div>
     </details>
-    <div class="stats">MCHTML v1.3 · three.js · generated &amp; rendered locally, nothing uploads</div>
+    <div class="stats">MCHTML v1.4 · three.js · generated &amp; rendered locally, nothing uploads</div>
   </div>
 </div>
 
@@ -254,7 +257,7 @@
     <div class="seedline" style="margin-top:10px">
       <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="touchChk2" type="checkbox" style="width:15px;height:15px;accent-color:#5cb53f" />touch controls</label>
     </div>
-    <div class="stats">MCHTML v1.3 · three.js · generated &amp; rendered locally, nothing uploads</div>
+    <div class="stats">MCHTML v1.4 · three.js · generated &amp; rendered locally, nothing uploads</div>
   </div>
 </div>
 
@@ -274,6 +277,8 @@
   <div id="btnJump" class="tbtn">JUMP</div>
   <div id="btnFly" class="tbtn">FLY</div>
   <div id="btnMode" class="tbtn">MINE</div>
+  <div id="btnDown" class="tbtn">DOWN</div>
+  <div id="btnMenu" class="tbtn">MENU</div>
 </div>
 
 <script type="module">
@@ -610,6 +615,34 @@ function setBlock(x, y, z, id, record=true, net=true){
   return true;
 }
 
+/* ---------- falling sand (event-driven settle — no tick loop) ---------- */
+function genBlockAt(x, y, z){
+  // the column rules from the chunk builder, as a pure function (trees ignored:
+  // a cell that ever held sand must have been generated air/water/sand)
+  const h = heightAt(x, z);
+  if (y === 0) return B.BEDROCK;
+  if (y > h) return (y <= SEA) ? B.WATER : B.AIR;
+  if (y === h) return surfaceBlock(h);
+  if (y >= h-3) return (surfaceBlock(h)===B.SAND ? B.SAND : surfaceBlock(h)===B.SNOW ? B.STONE : B.DIRT);
+  return B.STONE;
+}
+function settleFrom(x, y, z){
+  if (y <= 0 || y >= HGT) return;
+  if (getBlock(x, y, z) !== B.SAND) return;
+  if (!chunkAt(x>>4, z>>4)) return;            // ground not streamed in — hold in place
+  let ny = y;
+  while (ny-1 >= 1){
+    const below = getBlock(x, ny-1, z);
+    if (below !== B.AIR && below !== B.WATER) break;
+    ny--;
+  }
+  if (ny === y) return;                        // already resting on firm ground
+  setBlock(x, y, z, genBlockAt(x, y, z), true, true);  // source reverts to generated content
+  setBlock(x, ny, z, B.SAND, true, true);             // lands as sand
+  spawnBreakParticles(x, ny, z, B.SAND);              // landing puff
+  if (getBlock(x, y+1, z) === B.SAND) settleFrom(x, y+1, z); // pull the stack down
+}
+
 /* ---------- meshing (per-face colors + baked AO) ---------- */
 /* face order: +X,-X,+Y,-Y,+Z,-Z ; each face: normal, 4 corners, per-corner
    sample offsets for AO. Canonical layout adapted from the classic 0fps
@@ -869,10 +902,20 @@ let lastSpace = 0;
 let selected = 0;
 
 function spawnPlayer(){
-  // find a nice above-water spawn
-  let sx=8, sz=8, tr=0;
-  while (heightAt(sx, sz) <= SEA+1 && tr++ < 400){ sx = 8 + ((tr*37)%61); sz = 8 + ((tr*67)%61); }
-  const h = heightAt(sx, sz);
+  // spiral out from origin; first dry column (surface at or above sea+1) wins —
+  // no more spawning in the drink even on ocean-heavy seeds
+  let sx=0, sz=0, h=-1;
+  outer:
+  for (let r=0; r<=256; r++){
+    const steps = Math.max(1, Math.ceil(r*6.28));   // ~1 block apart along the ring
+    for (let i=0;i<steps;i++){
+      const a = i/steps*Math.PI*2;
+      const x = Math.round(Math.sin(a)*r), z = Math.round(Math.cos(a)*r);
+      const hh = heightAt(x, z);
+      if (hh >= SEA+1){ sx=x; sz=z; h=hh; break outer; }
+    }
+  }
+  if (h < 0){ sx=0; sz=0; h=heightAt(0,0); }        // ocean planet: dry-set at origin
   player.pos.set(sx+0.5, h+2.6, sz+0.5);
   player.vel.set(0,0,0);
   player.yaw = hash(1,2)*6.28; player.pitch = -0.1;
@@ -992,6 +1035,7 @@ function breakBlock(){
   edits.set(t.x+','+t.y+','+t.z, B.AIR);
   spawnBreakParticles(t.x, t.y, t.z, t.id);
   sfx('break');
+  if (getBlock(t.x, t.y+1, t.z) === B.SAND) settleFrom(t.x, t.y+1, t.z); // unstick the column above
   saveSoon();
 }
 function placeBlock(){
@@ -1006,6 +1050,7 @@ function placeBlock(){
       pz+1 > player.pos.z-w && pz < player.pos.z+w &&
       py+1 > player.pos.y && py < player.pos.y+player.h && isSolidId(HOTBAR[selected])) return;
   setBlock(px, py, pz, HOTBAR[selected]);
+  if (HOTBAR[selected] === B.SAND) settleFrom(px, py, pz);
   sfx('place');
   saveSoon();
 }
@@ -1308,59 +1353,113 @@ addEventListener('wheel', e=>{
   else select(selected-1);
 }, { passive:true });
 
-/* touch controls — attached unconditionally so the welcome-screen toggle
-   works on any device; the sim only reacts to actual touch events */
+/* touch controls v2 — attached unconditionally so the welcome-screen toggle
+   works on any device; the sim only reacts to actual touch events.
+   Every zone tracks ITS OWN touch identifier, so steering and looking,
+   tapping and dragging, and two-finger play coexist without stealing
+   each other's fingers. Flight: hold JUMP to rise, hold DOWN to sink. */
 const stickVec = { x:0, y:0, active:false };
 {
-  const zone = $('stickZone'), stick = $('stick'), nub = $('nub');
-  let sx0=0, sy0=0;
-  zone.addEventListener('touchstart', e=>{
-    const t = e.touches[0]; sx0=t.clientX; sy0=t.clientY;
-    stick.style.left = (sx0-48)+'px'; stick.style.top = (sy0-48)+'px';
-    stick.style.opacity = 1; stickVec.active = true; e.preventDefault();
+  const zone = $('stickZone'), stick = $('stick'), nub = $('nub'), lz = $('lookZone');
+
+  /* ---- movement thumbstick ---- */
+  let stickId = null, sx0 = 0, sy0 = 0;
+  zone.addEventListener('touchstart', e => {
+    const t = e.changedTouches[0];
+    stickId = t.identifier; sx0 = t.clientX; sy0 = t.clientY;
+    stick.style.left = (sx0 - 48) + 'px'; stick.style.top = (sy0 - 48) + 'px';
+    stick.style.opacity = 1; stickVec.active = true;
+    e.preventDefault();
   }, { passive:false });
-  zone.addEventListener('touchmove', e=>{
-    const t = e.touches[0];
-    let dx = t.clientX-sx0, dy = t.clientY-sy0;
-    const m = Math.hypot(dx,dy); if (m>44){ dx*=44/m; dy*=44/m; }
-    nub.style.left = (26+dx)+'px'; nub.style.top = (26+dy)+'px';
-    stickVec.x = dx/44; stickVec.y = dy/44; e.preventDefault();
+  zone.addEventListener('touchmove', e => {
+    if (stickId === null) return;
+    let t = null;
+    for (const c of e.changedTouches) if (c.identifier === stickId) t = c;
+    if (!t) return;
+    let dx = t.clientX - sx0, dy = t.clientY - sy0;
+    const m = Math.hypot(dx, dy); if (m > 44){ dx *= 44 / m; dy *= 44 / m; }
+    nub.style.left = (26 + dx) + 'px'; nub.style.top = (26 + dy) + 'px';
+    stickVec.x = dx / 44; stickVec.y = dy / 44;
+    e.preventDefault();
   }, { passive:false });
-  zone.addEventListener('touchend', ()=>{
-    stickVec.active=false; stickVec.x=stickVec.y=0;
-    nub.style.left='26px'; nub.style.top='26px'; stick.style.opacity=.5; stick.style.left=''; stick.style.top='';
-  });
-  let lookT=null, lookLast=null, holdTimer=null;
-  const lz = $('lookZone');
+  const stickRelease = () => {
+    stickId = null;
+    stickVec.active = false; stickVec.x = stickVec.y = 0;
+    nub.style.left = '26px'; nub.style.top = '26px';
+    stick.style.opacity = .5; stick.style.left = ''; stick.style.top = '';
+  };
+  zone.addEventListener('touchend', e => { e.preventDefault(); stickRelease(); });
+  zone.addEventListener('touchcancel', stickRelease);   // phone rings, system gesture → no phantom walk
+
+  /* ---- look / dig / build zone ---- */
+  let lookId = null, lookLast = null, holdTimer = null, dragDist = 0, dragStartT = 0;
   let modePlace = false;
   $('btnMode').textContent = 'MINE';
-  $('btnMode').addEventListener('click', ()=>{ modePlace = !modePlace; $('btnMode').textContent = modePlace ? 'BUILD' : 'MINE'; toast(modePlace?'tap: place block':'tap: break block'); });
-  $('btnJump').addEventListener('click', ()=>{
-    if (player.onGround){ player.vel.y = 8.6; player.onGround = false; }
-    const now = performance.now();
-    if (now - (window.__lastJump||0) < 280){ player.flying = !player.flying; player.vel.y=0; toast(player.flying?'flight on':'flight off'); }
-    window.__lastJump = now;
-  });
-  $('btnFly').addEventListener('click', ()=>{ player.flying = !player.flying; player.vel.y=0; toast(player.flying?'flight on':'flight off'); });
-  lz.addEventListener('touchstart', e=>{
-    const t = e.touches[0]; lookLast = { x:t.clientX, y:t.clientY };
-    holdTimer = setTimeout(()=>{ holdTimer=null; placeBlock(); }, 420);
+  $('btnMode').addEventListener('click', () => { modePlace = !modePlace; $('btnMode').textContent = modePlace ? 'BUILD' : 'MINE'; toast(modePlace ? 'tap: place block' : 'tap: break block'); });
+
+  const clearHold = () => { if (holdTimer){ clearTimeout(holdTimer); holdTimer = null; } };
+
+  lz.addEventListener('touchstart', e => {
+    /* a stray second finger lands here too: ignore it unless it is OUR first */
+    if (lookId !== null) { e.preventDefault(); return; }
+    const t = e.changedTouches[0];
+    lookId = t.identifier;
+    lookLast = { x:t.clientX, y:t.clientY };
+    dragDist = 0; dragStartT = performance.now();
+    holdTimer = setTimeout(() => { holdTimer = null; placeBlock(); }, 420);   // long-press = build
     e.preventDefault();
   }, { passive:false });
-  lz.addEventListener('touchmove', e=>{
-    if (!lookLast) return;
-    const t = e.touches[0];
-    player.yaw   -= (t.clientX-lookLast.x)*0.005*settings.sens;
-    player.pitch -= (t.clientY-lookLast.y)*0.005*settings.sens*(settings.invertY ? -1 : 1);
+  lz.addEventListener('touchmove', e => {
+    if (lookId === null || !lookLast) return;
+    let t = null;
+    for (const c of e.changedTouches) if (c.identifier === lookId) t = c;
+    if (!t) return;
+    const dx = t.clientX - lookLast.x, dy = t.clientY - lookLast.y;
+    dragDist += Math.hypot(dx, dy);
+    player.yaw   -= dx * 0.005 * settings.sens;
+    player.pitch -= dy * 0.005 * settings.sens * (settings.invertY ? -1 : 1);
     player.pitch = Math.max(-1.55, Math.min(1.55, player.pitch));
     lookLast = { x:t.clientX, y:t.clientY };
-    if (holdTimer){ clearTimeout(holdTimer); holdTimer = setTimeout(()=>{ holdTimer=null; placeBlock(); }, 420); }
+    if (holdTimer && dragDist > 12) clearHold();      // a skidding finger was a LOOK, not a build press
     e.preventDefault();
   }, { passive:false });
-  lz.addEventListener('touchend', ()=>{
-    if (holdTimer){ clearTimeout(holdTimer); holdTimer = null; if (modePlace) placeBlock(); else breakBlock(); }
-    lookLast = null;
-  });
+  const lookRelease = e => {
+    if (lookId === null) return;
+    let wasMine = false;
+    for (const t of e.changedTouches) if (t.identifier === lookId) wasMine = true;
+    if (!wasMine) return;
+    lookId = null; lookLast = null;
+    if (holdTimer){                                    // finger left before the press matured → clean tap
+      clearHold();
+      if (dragDist < 12 && performance.now() - dragStartT < 500) modePlace ? placeBlock() : breakBlock();
+    }
+    e.preventDefault();
+  };
+  lz.addEventListener('touchend', lookRelease);
+  lz.addEventListener('touchcancel', () => { lookId = null; lookLast = null; clearHold(); });
+
+  /* ---- flight cluster: hold JUMP to rise, hold DOWN to sink, double-tap to toggle flight ---- */
+  const bj = $('btnJump'), bd = $('btnDown'), bM = $('btnMenu');
+  let jumpTapT = 0;
+  const flyState = f => { toast(f ? 'flight on' : 'flight off'); ui.mode.textContent = f ? 'fly' : 'walk'; };
+  bj.addEventListener('touchstart', e => {
+    keys.add('Space');                                 // hold = rise in flight / repeated jumps on foot
+    const now = performance.now();
+    if (now - jumpTapT < 280){ player.flying = !player.flying; player.vel.y = 0; keys.delete('Space'); flyState(player.flying); }
+    jumpTapT = now;
+    e.preventDefault();
+  }, { passive:false });
+  const jumpEnd = () => keys.delete('Space');
+  bj.addEventListener('touchend', jumpEnd);
+  bj.addEventListener('touchcancel', jumpEnd);
+  bd.addEventListener('touchstart', e => { keys.add('ShiftLeft'); e.preventDefault(); }, { passive:false });
+  const downEnd = () => keys.delete('ShiftLeft');
+  bd.addEventListener('touchend', downEnd);
+  bd.addEventListener('touchcancel', downEnd);
+  $('btnFly').addEventListener('click', () => { player.flying = !player.flying; player.vel.y = 0; flyState(player.flying); });
+
+  /* the finger-based Esc */
+  bM.addEventListener('click', () => { paused = true; syncMenuStats(); ui.menu.classList.remove('hidden'); });
 }
 
 /* ---------- multiplayer: WebRTC peer links with hand-traded codes ----------
@@ -1617,6 +1716,13 @@ window.__mpTest = {
   leave: r => mpLeave(r),
   drop: pid => dropPeer(pid),
   pump: () => pumpChunks(),
+  blockAt: getBlock,
+  aim: targetVoxel,
+  place: placeBlock,
+  sel: i => select(i),
+  sand: settleFrom,
+  gen: genBlockAt,
+  spawn: spawnPlayer,
   mp: MP,
 };
 
