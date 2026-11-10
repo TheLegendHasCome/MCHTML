@@ -12,11 +12,12 @@ A tiny Minecraft-like voxel sandbox that runs entirely in your browser — **one
 - **Procedural pixel-art textures** — a 14-tile atlas painted at boot on a single 128×32 canvas (grass turf bleeding over dirt, bark grain, cobble courses, plank joints, frosted glass shine), nearest-filtered so it stays crisp
 - **Block breaking & placing** — voxel raycast (Amanatides–Woo DDA), 10-block hotbar, middle-click eyedropper
 - **Baked ambient occlusion** — per-vertex AO in the classic *0fps* style, with quad-diagonal flipping to kill the anisotropy artifacts; vertex colors act as pure brightness over the texture map, so shading and pixels stack
+- **Break particles** — pooled mini-cubes carrying the broken block's own atlas tile; gravity, ground bounce, tumble and a fade-out shrink, zero geometry churn
 - **Water, trees & clouds** — depth-ordered translucent water, deterministic oak trees whose canopies cross chunk seams without holes, drifting instanced clouds
 - **Physics** — swept AABB player with sub-stepping (no tunneling); the movement basis is derived directly from the camera rotation, so "forward" is always exactly where you're looking
 - **Mouse settings** — live sensitivity slider and invert-Y toggle in the pause menu, persisted with your save
 - **Persistence** — your edits, settings and position auto-save to `localStorage` every few seconds; the **seed** box in the pause menu lets you share worlds as a number
-- **Touch support** — thumbstick + look-zone + fly/build toggles on mobile
+- **Touch support** — thumbstick + look-zone + fly/build toggles, **toggleable on the welcome screen** (auto-detected by default, flippable anytime from the pause menu)
 - **Tiny synth** — break/place/jump sounds generated with WebAudio, no assets
 
 ## Controls

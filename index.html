@@ -162,7 +162,10 @@
       <span><kbd>Esc</kbd></span><span>menu (world auto-saves)</span>
     </div>
     <div class="btnrow"><button id="btnPlay" class="g">ENTER WORLD</button></div>
-    <div class="stats">touch devices get a thumbstick · desktop is best</div>
+    <div class="seedline" style="margin-top:16px">
+      <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="touchChk" type="checkbox" style="width:15px;height:15px;accent-color:#5cb53f" />touch controls (thumbstick · tap to mine / long-press to build)</label>
+    </div>
+    <div class="stats">you can flip this anytime from the pause menu</div>
   </div>
 </div>
 
@@ -186,10 +189,13 @@
     <div class="seedline" style="margin-top:10px">
       <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="invertY" type="checkbox" style="width:15px;height:15px;accent-color:#5cb53f" />invert Y axis</label>
     </div>
+    <div class="seedline" style="margin-top:10px">
+      <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="touchChk2" type="checkbox" style="width:15px;height:15px;accent-color:#5cb53f" />touch controls</label>
+    </div>
     <div class="seedline">
       <span>load seed:</span><input id="seedInput" type="text" placeholder="number…" /><button id="btnSeed" class="g secondary" style="padding:13px 14px;font-size:10px">GO</button>
     </div>
-    <div class="stats">MCHTML v1.1 · three.js · generated &amp; rendered locally, nothing uploads</div>
+    <div class="stats">MCHTML v1.2 · three.js · generated &amp; rendered locally, nothing uploads</div>
   </div>
 </div>
 
@@ -670,6 +676,7 @@ renderer.setClearColor(0x9ec7ea);
 const matOpaque = new THREE.MeshBasicMaterial({ vertexColors:true, map: ATLAS.tex });
 const matWater  = new THREE.MeshBasicMaterial({ vertexColors:true, map: ATLAS.tex, transparent:true, opacity:0.78, depthWrite:false, side:THREE.DoubleSide });
 const matGlass  = new THREE.MeshBasicMaterial({ vertexColors:true, map: ATLAS.tex, transparent:true, opacity:0.52, side:THREE.DoubleSide });
+const matParticle = new THREE.MeshBasicMaterial({ map: ATLAS.tex });
 
 /* sky dome with a soft gradient + sun disc */
 const sky = (()=>{
@@ -722,6 +729,75 @@ const hiBox = new THREE.LineSegments(
   new THREE.LineBasicMaterial({ color:0x000000, transparent:true, opacity:0.5 })
 );
 hiBox.visible = false; scene.add(hiBox);
+
+/* ---------- break particles ----------
+   Pooled mini-cubes carrying the broken block's atlas tile. Gravity,
+   ground bounce, tumble, fade-out shrink. One cached BoxGeometry per
+   tile with its UVs remapped, so geometry churn stays at zero. */
+const PGEO = {};
+function particleGeo(tile){
+  let g = PGEO[tile];
+  if (!g){
+    g = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+    const uvA = g.attributes.uv, T = ATLAS.uv[tile];
+    for (let i = 0; i < uvA.count; i++){
+      uvA.setXY(i,
+        T[0] + (T[2]-T[0]) * uvA.getX(i),
+        T[1] + (T[3]-T[1]) * uvA.getY(i));
+    }
+    uvA.needsUpdate = true;
+    PGEO[tile] = g;
+  }
+  return g;
+}
+const PPOOL = 140;
+const particles = [];
+for (let i = 0; i < PPOOL; i++){
+  const m = new THREE.Mesh(particleGeo('stone'), matParticle);
+  m.visible = false;
+  scene.add(m);
+  particles.push({ m, vx:0, vy:0, vz:0, life:0, ttl:1, base:1, sx:0, sy:0, sz:0 });
+}
+function spawnBreakParticles(x, y, z, blockId){
+  const tile = tileFor(blockId, FACES[0]);
+  let spawned = 0;
+  for (const p of particles){
+    if (p.life > 0) continue;
+    p.m.geometry = particleGeo(tile);
+    p.base = 0.7 + Math.random()*0.7;
+    p.m.scale.setScalar(p.base);
+    p.m.position.set(x + 0.18 + Math.random()*0.64, y + 0.18 + Math.random()*0.64, z + 0.18 + Math.random()*0.64);
+    const a = Math.random()*Math.PI*2, r = 1.2 + Math.random()*2.2;
+    p.vx = Math.cos(a)*r*0.6 + (Math.random()-0.5)*1.4;
+    p.vy = 2.2 + Math.random()*2.8;
+    p.vz = Math.sin(a)*r*0.6 + (Math.random()-0.5)*1.4;
+    p.spinX = (Math.random()-0.5)*7; p.spinY = (Math.random()-0.5)*7; p.spinZ = (Math.random()-0.5)*7;
+    p.m.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+    p.ttl = p.life = 0.55 + Math.random()*0.4;
+    p.m.visible = true;
+    if (++spawned >= 16) break;
+  }
+}
+function updateParticles(dt){
+  for (const p of particles){
+    if (p.life <= 0) continue;
+    p.life -= dt;
+    if (p.life <= 0){ p.m.visible = false; continue; }
+    p.vy -= 15.5*dt;
+    p.m.position.x += p.vx*dt;
+    p.m.position.z += p.vz*dt;
+    p.m.position.y += p.vy*dt;
+    // crude ground contact: stop falling inside a solid cell, bounce off it
+    const px = p.m.position.x, py = p.m.position.y, pz = p.m.position.z;
+    if (isSolidId(getBlock(Math.floor(px), Math.floor(py + 0.09), Math.floor(pz))) && p.vy < 0){
+      p.m.position.y = Math.floor(py + 0.09) + 0.91;
+      p.vy *= -0.32; p.vx *= 0.62; p.vz *= 0.62;
+    }
+    p.m.rotation.x += p.spinX*dt; p.m.rotation.y += p.spinY*dt; p.m.rotation.z += p.spinZ*dt;
+    const k = Math.min(1, p.life / (p.ttl * 0.5));
+    p.m.scale.setScalar(p.base * (0.35 + 0.65*k));
+  }
+}
 
 /* ---------- player ---------- */
 const player = {
@@ -855,7 +931,7 @@ function breakBlock(){
   if (!t || UNBREAKABLE.has(t.id)) return;
   setBlock(t.x, t.y, t.z, B.AIR);
   edits.set(t.x+','+t.y+','+t.z, B.AIR);
-  t.dirtyChunk = true;
+  spawnBreakParticles(t.x, t.y, t.z, t.id);
   sfx('break');
   saveSoon();
 }
@@ -1016,11 +1092,27 @@ function select(i){
 select(0);
 
 /* ---------- settings (persists with the save) ---------- */
-const settings = { sens: 1.0, invertY: false };
+const settings = { sens: 1.0, invertY: false, touch: null };
+const isTouch = matchMedia('(pointer: coarse)').matches;
 function applySettingsUI(){
   $('sensRange').value = Math.round(settings.sens * 100);
   $('sensVal').textContent = Math.round(settings.sens * 100) + '%';
   $('invertY').checked = settings.invertY;
+  syncTouchUI();
+}
+/* touch preference: null = auto by pointer type, else explicit on/off */
+const touchActive = () => settings.touch == null ? isTouch : settings.touch;
+function syncTouchUI(){
+  const v = !!touchActive();
+  const c1 = $('touchChk'), c2 = $('touchChk2');
+  if (c1) c1.checked = v;
+  if (c2) c2.checked = v;
+  $('touchUI').classList.toggle('hidden', !v);
+}
+function setTouchUI(v){
+  settings.touch = v;
+  syncTouchUI();
+  saveSoon();
 }
 $('sensRange') && ($('sensRange').oninput = e=>{
   settings.sens = e.target.value / 100;
@@ -1031,9 +1123,11 @@ $('invertY') && ($('invertY').onchange = e=>{
   settings.invertY = e.target.checked;
   saveSoon();
 });
+$('touchChk').onchange = e=> setTouchUI(e.target.checked);
+$('touchChk2').onchange = e=> setTouchUI(e.target.checked);
+syncTouchUI();
 
 let running = false, paused = false;
-const isTouch = matchMedia('(pointer: coarse)').matches;
 
 function toastOnce(s){ toast(s); }
 function pointerLock(){
@@ -1050,7 +1144,7 @@ function startGame(){
   ui.welcome.classList.add('hidden');
   ui.menu.classList.add('hidden');
   ui.hud.classList.remove('hidden');
-  if (isTouch) $('touchUI').classList.remove('hidden');
+  syncTouchUI();
   audioCtx();
   pointerLock();
   syncMenuStats();
@@ -1118,9 +1212,10 @@ addEventListener('wheel', e=>{
   else select(selected-1);
 }, { passive:true });
 
-/* touch controls */
+/* touch controls — attached unconditionally so the welcome-screen toggle
+   works on any device; the sim only reacts to actual touch events */
 const stickVec = { x:0, y:0, active:false };
-if (isTouch){
+{
   const zone = $('stickZone'), stick = $('stick'), nub = $('nub');
   let sx0=0, sy0=0;
   zone.addEventListener('touchstart', e=>{
@@ -1173,7 +1268,7 @@ if (isTouch){
 }
 
 /* expose for tinkering */
-window.MCHTML = { world:{ get:getBlock, set:(x,y,z,i)=>setBlock(x,y,z,i), height:heightAt, chunks, edits }, player, camera, THREE, freshWorld, saveNow, step:(dt=0.016)=>{ running = true; movePlayer(dt); } };
+window.MCHTML = { world:{ get:getBlock, set:(x,y,z,i)=>setBlock(x,y,z,i), height:heightAt, chunks, edits }, player, camera, THREE, freshWorld, saveNow, step:(dt=0.016)=>{ running = true; movePlayer(dt); updateParticles(dt); }, break:()=>breakBlock(), particles:()=>particles.filter(p=>p.life>0).length };
 
 /* ---------- boot + loop ---------- */
 let primed = false;
@@ -1186,7 +1281,7 @@ function boot(){
     spawnPlayer();
     if (saved.player){ player.pos.set(saved.player.x, saved.player.y, saved.player.z); player.yaw = saved.player.yaw||0; player.pitch = saved.player.pitch||0; player.flying = !!saved.player.fly; }
     if (saved.sel != null) select(Math.min(saved.sel, HOTBAR.length-1));
-    if (saved.settings){ settings.sens = saved.settings.sens ?? 1; settings.invertY = !!saved.settings.invertY; }
+    if (saved.settings){ settings.sens = saved.settings.sens ?? 1; settings.invertY = !!saved.settings.invertY; settings.touch = (typeof saved.settings.touch === 'boolean') ? saved.settings.touch : null; }
     applySettingsUI();
   } else {
     freshWorld((Math.random()*0x7fffffff)|0);
@@ -1226,6 +1321,7 @@ function loop(now){
 
   if (running && !paused){
     movePlayer(dt);
+    updateParticles(dt);
     // crosshair target highlight
     const hv = targetVoxel();
     if (hv){ hiBox.visible = true; hiBox.position.set(hv.x+0.5, hv.y+0.5, hv.z+0.5); }
