@@ -442,8 +442,9 @@ function buildChunkMesh(cx, cz){
         const shade = SHADE[f];
         // tiny per-block tint jitter keeps big surfaces from looking flat
         const jit = 0.94 + hash(wx*3+wy*7, wz*5+wy)*0.10;
-        const c3 = new THREE.Color((id === B.GRASS && F.n[1] !== -1) ? (F.n[1]===1 ? 0x6fae3e : 0x7c5a3a) : COLORS[id]);
-        if (id === B.GRASS && F.n[1] !== 1) c3.setHex(0x7c5a3a); // dirt sides under the turf
+        // grass shows its turf only on the top face — sides/bottom are dirt
+        const hex = (id === B.GRASS && F.n[1] !== 1) ? 0x7c5a3a : COLORS[id];
+        const c3 = new THREE.Color(hex);
 
         const P = isWater?posW:(isGlass?posG:pos), C = isWater?colW:(isGlass?colG:col);
         const I = isWater?indW:(isGlass?indG:ind);
