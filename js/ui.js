@@ -717,6 +717,7 @@ function boot(){
   // pause
   $('btnResume').addEventListener('click', togglePause);
   $('btnSave').addEventListener('click', () => { M.game.saveNow(); toast('world saved'); });
+  $('btnSurface').addEventListener('click', () => { M.game.goToSurface(); });
   $('btnSeed').addEventListener('click', () => { if (M.game.worldMeta) copyText(String(M.game.worldMeta.seed)); });
   $('btnSettings').addEventListener('click', () => { applySettingsUI(); showScreen('settings'); });
   $('btnMp').addEventListener('click', () => { showScreen('mp'); updateMpStatus(); });

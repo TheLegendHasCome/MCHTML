@@ -550,6 +550,18 @@ function spawnPlayer(){
   player.yaw = M.hash2(1, 2, 999)*6.28; player.pitch = -.1;
   player.flying = false; player.fallY = null;
 }
+/* manual escape hatch: always lands you on the generator surface with headroom */
+function goToSurface(){
+  const p = player;
+  const h = M.heightAt(Math.floor(p.pos.x), Math.floor(p.pos.z));
+  p.pos.y = h + 1.05;
+  p.vel.set(0, 0, 0);
+  player.fallY = null;
+  primed = false;                          // re-gate so the 3×3 rebuilds at the new height
+  M.ui && M.ui.showLoading && M.ui.showLoading();
+  toastish('going to surface…');
+  saveSoon();
+}
 function respawnWorldSpawn(){
   switchDimHome();
 }
@@ -1062,7 +1074,7 @@ M.netPositionTick = (now) => {
 M.game = {
   get player(){ return player; }, get worldMeta(){ return worldMeta; }, get inv(){ return inv; },
   get selected(){ return selected; }, settings, furnaces, portalLinks, get worldTime(){ return worldTime; },
-  startWorld, saveNow, spawnPlayer, switchDim, respawn, setSel, addInv, takeInv, countInv,
+  startWorld, saveNow, spawnPlayer, goToSurface, switchDim, respawn, setSel, addInv, takeInv, countInv,
   breakInfo, placeAt, tryIgnite, linkPortal, stampArrival, endArrival, buildChunkMesh, loop, setupScene,
   get primed(){ return primed; }, set primed(v){ primed = v; },
   setRunning(v){ running = v; }, get running(){ return running; },
