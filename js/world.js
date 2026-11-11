@@ -264,6 +264,17 @@ function genBlockAt(x, y, z){
 }
 const genBlockAtDim = (d, x, y, z) => cellAt(d, x, y, z);
 
+/* spawn helper: true when decor or a structure occupies the standing column
+   at (x, z) — the spawn spiral rejects these instead of embedding the player */
+function spawnBlockedAt(x, z){
+  for (let dx=-2; dx<=2; dx++) for (let dz=-2; dz<=2; dz++)
+    if (isTreeAt(x+dx, z+dz)) return true;               // trunk column or canopy ring (canopy can dip to surface+2)
+  if (carved(x, heightAt(x, z), z, heightAt(x, z))) return true;   // cave mouth at the surface
+  const cells = villageCells(Math.floor(x/96), Math.floor(z/96));
+  if (cells) for (const [cx, cy, cz] of cells) if (cx === x && cz === z) return true;
+  return false;
+}
+
 /* ---------- chunks ---------- */
 const chunks = new Map();                 // "dim:cx,cz" → chunk
 const key = (d, cx, cz) => d + ':' + cx + ',' + cz;
@@ -715,7 +726,7 @@ Object.assign(MCH, {
   B, BINFO, NAMES, ITEMS, TOOL, // re-assert
   CH, HGT, SEA, SNOW, cIdx, DIM, DIM_NAME, DIM_SKY, WORLD_BORDER, setSeed,
   hash2, hash3, vnoise2, vnoise3, fbm2, fbm3, ridged2,
-  heightAt, surfaceBlock, carved, oreAt, isTreeAt,
+  heightAt, surfaceBlock, carved, oreAt, isTreeAt, spawnBlockedAt,
   overCell, netherCell, endCell, cellAt, genBlockAt, genBlockAtDim,
   hutCells, villageCells, towerCells, stampStructures,
   chunks, chunkAt, key, editKey, edits,

@@ -541,7 +541,7 @@ function spawnPlayer(){
       const a = i/steps*Math.PI*2;
       const x = Math.round(Math.sin(a)*r), z = Math.round(Math.cos(a)*r);
       const hh = heightAt(x, z);
-      if (hh >= SEA+1){ sx=x; sz=z; h=hh; break outer; }
+      if (hh >= SEA+1 && !M.spawnBlockedAt(x, z)){ sx=x; sz=z; h=hh; break outer; }
     }
   }
   if (h < 0){ sx=0; sz=0; h=heightAt(0,0); }
@@ -572,8 +572,20 @@ function rescueSpawn(){
   const under = M.getBlock(px, Math.floor(player.pos.y - .2), pz);
   const embedded = M.isSolidId(feet) || M.isSolidId(head);
   const inFluid = under === B.WATER || under === B.LAVA;
-  if (!embedded && !inFluid) return;
-  if (DIM.cur === 0){ spawnPlayer(); return; }
+  if (!embedded && !inFluid){ rescueTries = 0; return; }
+  if (DIM.cur === 0){
+    if (rescueTries++ < 12){
+      spawnPlayer();
+      primed = false;                      // the new spot's 3×3 may not exist yet — wait, then re-check
+      M.ui && M.ui.showLoading && M.ui.showLoading();
+      return;
+    }
+    // last resort after 12 retries: stand on the generator surface
+    player.pos.y = M.heightAt(px, pz) + 1.05;
+    player.vel.set(0, 0, 0);
+    rescueTries = 0;
+    return;
+  }
   // other dims: arrival pockets are stamped as edits — nudge up into the nearest free cell
   let ny = Math.floor(player.pos.y);
   for (let i = 0; i < 24; i++){
@@ -583,6 +595,7 @@ function rescueSpawn(){
   }
   player.pos.y = ny + .05;
   player.vel.set(0, 0, 0);
+  rescueTries = 0;
 }
 
 /* ---------- sky / day-night ---------- */
@@ -871,6 +884,8 @@ function startWorld(meta){
   M.rsRebuildLists(DIM.cur);
   applySky();
   M.ui && M.ui.hudAll();
+  primed = false;                          // world entry re-gates sim + spawn rescue, same as a dimension switch
+  M.ui && M.ui.showLoading && M.ui.showLoading();
   saveNow();
 }
 
@@ -980,6 +995,7 @@ function loop(now){
   if (fpsN >= 30){ M.ui && M.ui.hudFps(fpsN/fpsAcc); fpsAcc = 0; fpsN = 0; }
 }
 let primed = false;
+let rescueTries = 0;                       // spawn-rescue retry budget (re-spiral can land on another bad column)
 function cloudsDrift(dt){
   cloudGrp.children.forEach(c => {
     c.position.x += dt*1.2;
