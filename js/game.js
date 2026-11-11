@@ -270,8 +270,8 @@ function breakBlock(){
   if (!t) return;
   const info = breakInfo(t.id);
   if (!info){ toastish('unbreakable'); return; }
+  if (worldMeta.mode === 'creative'){ doBreak(t); return; }   // creative ignores tool tiers
   if (info.blocked){ toastish('need a ' + ['','wood','stone','iron','diamond'][info.need] + ' pickaxe'); return; }
-  if (worldMeta.mode === 'creative'){ doBreak(t); return; }
   // survival: hold-to-mine handled in the loop via mineTarget
 }
 function placeAt(px, py, pz){
@@ -580,10 +580,16 @@ function rescueSpawn(){
       M.ui && M.ui.showLoading && M.ui.showLoading();
       return;
     }
-    // last resort after 12 retries: stand on the generator surface
-    player.pos.y = M.heightAt(px, pz) + 1.05;
+    // last resort after 12 retries: stand on the real surface from chunk data
+    // (heightAt lies under structures/cave mouths — sampling actual blocks can't)
+    let ty = -1;
+    for (let y = HGT-3; y >= 1; y--){
+      if (M.isSolidId(M.getBlock(px, y, pz)) && !M.isSolidId(M.getBlock(px, y+1, pz)) && !M.isSolidId(M.getBlock(px, y+2, pz))){ ty = y; break; }
+    }
+    player.pos.y = (ty >= 0 ? ty : M.heightAt(px, pz)) + 1.05;
     player.vel.set(0, 0, 0);
     rescueTries = 0;
+    stuckT = 0;
     return;
   }
   // other dims: arrival pockets are stamped as edits — nudge up into the nearest free cell
@@ -962,7 +968,7 @@ function toastish(msg){ M.ui && M.ui.toast(msg); }
 let last = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0;
 function loop(now){
   requestAnimationFrame(loop);
-  let dt = Math.min(.05, (now - last)/1000); last = now;
+  let dt = Math.max(0, Math.min(.05, (now - last)/1000)); last = now;
   const { made, meshed } = M.pumpChunks(buildChunkMesh, null, player, settings.dist, THREE);
   if (!primed){
     if (M.chunksReadyForSpawn()){
@@ -973,6 +979,17 @@ function loop(now){
   }
   if (running && primed && !paused && !player.dead){
     movePlayer(dt);
+    // stuck-in-solid watchdog: catches every way a player can end up embedded
+    // (stale saves, carved surfaces, bad portal stamps). Solid at feet or head
+    // → run the rescue cycle. Swimmers/diggers never trigger (their cells are air).
+    stuckT += dt;
+    if (stuckT > 1.5){
+      stuckT = 0;
+      const bx = Math.floor(player.pos.x), bz = Math.floor(player.pos.z);
+      const sf = M.getBlock(bx, Math.floor(player.pos.y + .05), bz);
+      const sh = M.getBlock(bx, Math.floor(player.pos.y + 1.5), bz);
+      if (M.isSolidId(sf) || M.isSolidId(sh)) rescueSpawn();
+    }
     tickSurvival(dt);
     tickMining(dt);
     tickFurnaces(dt);
@@ -996,6 +1013,7 @@ function loop(now){
 }
 let primed = false;
 let rescueTries = 0;                       // spawn-rescue retry budget (re-spiral can land on another bad column)
+let stuckT = 0;                            // embedded-watchdog timer (runs every 1.5s while playing)
 function cloudsDrift(dt){
   cloudGrp.children.forEach(c => {
     c.position.x += dt*1.2;
