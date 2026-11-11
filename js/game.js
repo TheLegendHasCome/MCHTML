@@ -475,6 +475,8 @@ function switchDim(d, x, y, z){
   M.clearChunks();
   player.pos.set(x, y, z); player.vel.set(0, 0, 0);
   player.fallY = null;
+  primed = false;                          // re-gate sim until this dim's chunks exist
+  M.ui && M.ui.showLoading && M.ui.showLoading();
   applySky();
   hCacheClear();
   saveSoon();
@@ -555,7 +557,32 @@ function switchDimHome(){
   if (DIM.cur !== 0){ DIM.cur = 0; M.clearChunks(); applySky(); }
   spawnPlayer();
   player.hp = 20; player.air = 10; player.dead = false;
+  primed = false;                          // re-gate sim until chunks exist
+  M.ui && M.ui.showLoading && M.ui.showLoading();
   M.ui && M.ui.hudHearts();
+}
+
+/* spawn rescue: runs once the 3×3 around the player exist. Fixes embedded
+   spawns (stale saves, migrated v1 heights) and fluid spawns, without
+   teleporting legit standing positions. */
+function rescueSpawn(){
+  const px = Math.floor(player.pos.x), pz = Math.floor(player.pos.z);
+  const feet = M.getBlock(px, Math.floor(player.pos.y + .05), pz);
+  const head = M.getBlock(px, Math.floor(player.pos.y + 1.5), pz);
+  const under = M.getBlock(px, Math.floor(player.pos.y - .2), pz);
+  const embedded = M.isSolidId(feet) || M.isSolidId(head);
+  const inFluid = under === B.WATER || under === B.LAVA;
+  if (!embedded && !inFluid) return;
+  if (DIM.cur === 0){ spawnPlayer(); return; }
+  // other dims: arrival pockets are stamped as edits — nudge up into the nearest free cell
+  let ny = Math.floor(player.pos.y);
+  for (let i = 0; i < 24; i++){
+    const a = M.getBlock(px, ny, pz), b = M.getBlock(px, ny + 1, pz), floorB = M.getBlock(px, ny - 1, pz);
+    if (!M.isSolidId(a) && !M.isSolidId(b) && M.isSolidId(floorB)) break;
+    ny++;
+  }
+  player.pos.y = ny + .05;
+  player.vel.set(0, 0, 0);
 }
 
 /* ---------- sky / day-night ---------- */
@@ -797,7 +824,7 @@ function migrateV1(){
     const edits2 = {};
     if (v1.edits) for (const k in v1.edits) edits2['0:' + k] = v1.edits[k];
     const data = { v: 2, name: 'My World', seed: v1.seed, mode: 'creative', dim: 0, time: .3,
-      player: v1.player ? { ...v1.player, hp: 20, sel: v1.sel || 0 } : null,
+      player: null,                       // v1 terrain heights don't match v2 — spawn fresh at the surface
       inv: [], edits: edits2, portals: [], furnaces: [], settings: v1.settings || null };
     localStorage.setItem(wKey('My World'), JSON.stringify(data));
     saveWorldsIndex([...listWorlds(), { name: 'My World', seed: v1.seed, mode: 'creative', ts: Date.now() }]);
@@ -925,11 +952,10 @@ function loop(now){
     if (M.chunksReadyForSpawn()){
       primed = true;
       M.ui && M.ui.hideLoading();
-      const under = M.getBlock(Math.floor(player.pos.x), Math.floor(player.pos.y - .2), Math.floor(player.pos.z));
-      if (under === B.WATER || under === B.AIR || under === B.LAVA) spawnPlayer();
+      rescueSpawn();
     } else M.ui && M.ui.loadingBar();
   }
-  if (running && !paused && !player.dead){
+  if (running && primed && !paused && !player.dead){
     movePlayer(dt);
     tickSurvival(dt);
     tickMining(dt);

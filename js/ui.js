@@ -373,6 +373,7 @@ function showDeath(){
 }
 function hideDeath(){ showScreen(null); }
 function hideLoading(){ $('loading').classList.add('hidden'); }
+function showLoading(){ $('loading').classList.remove('hidden'); $('loadBar').style.width = '0%'; }
 function loadingBar(){
   if (!M.game.started) return;
   let total = 0, ready = 0;
@@ -755,7 +756,7 @@ M.ui = {
   boot, toast, togglePause, toggleInventory,
   openCraft, openFurnace, furnaceTick: furnPulse,
   hudHearts, hudHotbar, hudAir, hudAll, hudFps,
-  hurtFlash, showDeath, hideDeath, hideLoading, loadingBar,
+  hurtFlash, showDeath, hideDeath, hideLoading, showLoading, loadingBar,
   mpStatus,
 };
 })();
