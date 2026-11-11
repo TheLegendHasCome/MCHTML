@@ -475,6 +475,7 @@ function switchDim(d, x, y, z){
   M.clearChunks();
   player.pos.set(x, y, z); player.vel.set(0, 0, 0);
   player.fallY = null;
+  camera.position.set(x, y + player.eye, z);
   primed = false;                          // re-gate sim until this dim's chunks exist
   M.ui && M.ui.showLoading && M.ui.showLoading();
   applySky();
@@ -549,6 +550,7 @@ function spawnPlayer(){
   player.vel.set(0,0,0);
   player.yaw = M.hash2(1, 2, 999)*6.28; player.pitch = -.1;
   player.flying = false; player.fallY = null;
+  camera.position.set(sx+.5, h+2.6+player.eye, sz+.5);
 }
 /* manual escape hatch: always lands you on the generator surface with headroom */
 function goToSurface(){
@@ -558,6 +560,7 @@ function goToSurface(){
   p.vel.set(0, 0, 0);
   player.fallY = null;
   primed = false;                          // re-gate so the 3×3 rebuilds at the new height
+  camera.position.set(p.pos.x, p.pos.y + player.eye, p.pos.z);
   M.ui && M.ui.showLoading && M.ui.showLoading();
   toastish('going to surface…');
   saveSoon();
@@ -1021,6 +1024,8 @@ function loop(now){
   if (DIM.cur === 0) worldTime = (worldTime + dt/600) % 1;
   cloudsDrift(dt);
   if (Math.floor(now/100) !== fpsT){ fpsT = Math.floor(now/100); updateSkyNow(); }
+  // camera always follows the player (even while loading / paused)
+  camera.position.set(player.pos.x, player.pos.y + player.eye, player.pos.z);
   renderer.render(scene, camera);
   fpsAcc += dt; fpsN++;
   if (fpsN >= 30){ M.ui && M.ui.hudFps(fpsN/fpsAcc); fpsAcc = 0; fpsN = 0; }
