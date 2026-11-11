@@ -836,7 +836,8 @@ function startWorld(meta){
   worldMeta = meta;
   M.setSeed(meta.seed);
   M.DIM.cur = 0;
-  edits.clear(); chunks.clear(); portalLinks.clear(); furnaces.clear();
+  M.clearChunks();                       // dispose old world's meshes — bare chunks.clear() would leave ghost terrain in the scene
+  edits.clear(); portalLinks.clear(); furnaces.clear();
   M.rsRebuildLists(0);
   worldTime = .3;
   for (let i=0; i<36; i++) inv[i] = null;
