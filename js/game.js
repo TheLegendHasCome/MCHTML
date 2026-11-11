@@ -269,7 +269,7 @@ function breakBlock(){
   const t = targetVoxel();
   if (!t) return;
   const info = breakInfo(t.id);
-  if (!info){ toastish('unbreakable'); return; }
+  if (!info){ toastish('unbreakable (' + t.id + ')'); return; }
   if (worldMeta.mode === 'creative'){ doBreak(t); return; }   // creative ignores tool tiers
   if (info.blocked){ toastish('need a ' + ['','wood','stone','iron','diamond'][info.need] + ' pickaxe'); return; }
   // survival: hold-to-mine handled in the loop via mineTarget
@@ -574,6 +574,7 @@ function rescueSpawn(){
   const inFluid = under === B.WATER || under === B.LAVA;
   if (!embedded && !inFluid){ rescueTries = 0; return; }
   if (DIM.cur === 0){
+    if (rescueTries === 0) toastish('rescuing...');      // let the player see the watchdog fire
     if (rescueTries++ < 12){
       spawnPlayer();
       primed = false;                      // the new spot's 3×3 may not exist yet — wait, then re-check
@@ -988,7 +989,8 @@ function loop(now){
       const bx = Math.floor(player.pos.x), bz = Math.floor(player.pos.z);
       const sf = M.getBlock(bx, Math.floor(player.pos.y + .05), bz);
       const sh = M.getBlock(bx, Math.floor(player.pos.y + 1.5), bz);
-      if (M.isSolidId(sf) || M.isSolidId(sh)) rescueSpawn();
+      const sc = M.getBlock(bx, Math.floor(player.pos.y + player.eye), bz);   // camera cell — catches head embedded in a wall
+      if (M.isSolidId(sf) || M.isSolidId(sh) || M.isSolidId(sc)) rescueSpawn();
     }
     tickSurvival(dt);
     tickMining(dt);
