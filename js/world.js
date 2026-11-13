@@ -269,7 +269,10 @@ const genBlockAtDim = (d, x, y, z) => cellAt(d, x, y, z);
 function spawnBlockedAt(x, z){
   for (let dx=-2; dx<=2; dx++) for (let dz=-2; dz<=2; dz++)
     if (isTreeAt(x+dx, z+dz)) return true;               // trunk column or canopy ring (canopy can dip to surface+2)
-  if (carved(x, heightAt(x, z), z, heightAt(x, z))) return true;   // cave mouth at the surface
+  const h = heightAt(x, z);
+  // a solid surface cell over a hollow still drops the player into a pit —
+  // test the first few cells underfoot, not just the surface
+  for (let dy=0; dy<=3; dy++) if (carved(x, h-dy, z, h)) return true;
   const cells = villageCells(Math.floor(x/96), Math.floor(z/96));
   if (cells) for (const [cx, cy, cz] of cells) if (cx === x && cz === z) return true;
   return false;
@@ -431,8 +434,11 @@ function buildMesh(cx, cz, THREE){
     const base = arrP.length/3;
     for (let i=0;i<4;i++){ arrP.push(verts[i][0], verts[i][1], verts[i][2]); arrC.push(colors[i][0], colors[i][1], colors[i][2]); }
     const u0 = uvRow[0], v0 = uvRow[1], s = 1/ACOLS;
-    const t = 1 - v0 - s;
-    arrU.push(u0, t+s, u0+s, t+s, u0+s, t, u0, t);
+    // half-texel inset: exact tile-edge UVs let NEAREST sampling bleed the
+    // neighboring atlas tile in as 1px seams/shimmer
+    const pad = .5/256, w = s - 2*pad;
+    const u = u0 + pad, t = 1 - v0 - s + pad;
+    arrU.push(u, t+w, u+w, t+w, u+w, t, u, t);
     if (flipDiag) arrI.push(base, base+1, base+2, base, base+2, base+3);
     else arrI.push(base+1, base+2, base+3, base+1, base+3, base);
   };
@@ -507,8 +513,10 @@ function addDeco(kind, id, x, y, z, wx, wz, lit, solid, trans){
     const base = bucket.pos.length/3;
     for (const v of verts) bucket.pos.push(v[0], v[1], v[2]);
     for (const b of bright) bucket.col.push(b, b, b);
-    const u0 = uvs4[0], v0 = uvs4[1], s = 1/ACOLS, t = 1 - v0 - s;
-    bucket.uvs.push(u0, t+s, u0+s, t+s, u0+s, t, u0, t);
+    const u0 = uvs4[0], v0 = uvs4[1], s = 1/ACOLS;
+    const pad = .5/256, w = s - 2*pad;          // same half-texel inset as solid faces
+    const u = u0 + pad, t = 1 - v0 - s + pad;
+    bucket.uvs.push(u, t+w, u+w, t+w, u+w, t, u, t);
     bucket.idx.push(base+1, base+2, base+3, base+1, base+3, base);
   };
   const quad = (a, b, c, dd, u, br) => [a, b, c, dd].map(v => v);
@@ -704,6 +712,20 @@ function pumpChunks(buildOne, meshOne, player, dist, THREE){
     const far = Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz)) > R + 1;
     if (far && c.mesh){ c.mesh.visible = false; if (c.meshW) c.meshW.visible = false; if (c.meshT) c.meshT.visible = false; }
     else if (!far && c.mesh){ c.mesh.visible = true; if (c.meshW) c.meshW.visible = true; if (c.meshT) c.meshT.visible = true; }
+  }
+  // eviction: without it every visited chunk kept its meshes + data forever,
+  // so long walks / portal hops piled up GPU memory until the page stuttered.
+  // Edits live in the edits Map, so evicted chunks regenerate identically.
+  const farDispose = R + 2, farDrop = R + 8;
+  for (const [k, c] of chunks){
+    const cd = Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz));
+    if (cd <= farDispose && c.dim === d) continue;
+    if (cd > farDrop){
+      if (c.dispose) c.dispose();
+      chunks.delete(k);
+    } else if (c.dim !== d && c.dispose){          // off-dim chunk near the player: free meshes, keep data
+      c.dispose();
+    }
   }
   return { made, meshed };
 }

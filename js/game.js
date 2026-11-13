@@ -59,6 +59,9 @@ function setupScene(){
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, .08, 900);
+  // r152+ defaults output to sRGB; the atlas is painted in plain sRGB pixels with
+  // no color-space tag, so that conversion washes out textures and flattens AO.
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   addEventListener('resize', () => {
     camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
@@ -623,12 +626,16 @@ function rescueSpawn(){
 /* ---------- sky / day-night ---------- */
 function applySky(){
   const d = DIM.cur;
-  scene.fog = new THREE.Fog(DIM_SKY[d].day, 60, Math.max(120, settings.dist*CH*1.6));
+  scene.fog = new THREE.Fog(DIM_SKY[d].day, 40, 90);   // near/far retuned in updateSkyNow
   updateSkyNow();
 }
 function updateSkyNow(){
   const d = DIM.cur;
   const sk = DIM_SKY[d];
+  // fog must end at the edge of the loaded world: terrain streams to (dist+1)*CH,
+  // so fog reaching 120+ exposed chunk-pop and void inside the fog band
+  const far = Math.max(80, (settings.dist + 1) * CH - 12);
+  scene.fog.near = far * .55; scene.fog.far = far;
   let dayF = 1, skyC = new THREE.Color(sk.day);
   if (d === 0){
     const ang = worldTime * Math.PI * 2;
@@ -1064,6 +1071,11 @@ function buildChunkMesh(c, THREE){
   c.meshW = mk(built.w, matWater);
   c.meshT = mk(built.t, matTrans);
   c.dirty = false;
+  // lets the world streamer free GPU memory when chunks drift out of range
+  c.dispose = () => {
+    for (const m of [c.mesh, c.meshW, c.meshT]) if (m){ scene.remove(m); m.geometry.dispose(); }
+    c.mesh = c.meshW = c.meshT = null;
+  };
 }
 
 /* ---------- net broadcast helpers (mp.js fills the transport) ---------- */
@@ -1090,7 +1102,6 @@ M.game = {
   setKey, isTouchActive, sfx, lock: pointerLock, toastish,
 };
 M.step = (dt = .016) => { running = true; movePlayer(dt); updateParticles(dt); };
-M.settleFrom && (M.settleFrom);
 
 /* boot */
 addEventListener('load', () => {
